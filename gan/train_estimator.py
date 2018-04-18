@@ -28,52 +28,60 @@ import tensorflow as tf
 #import data_provider
 import networks
 
-tf.logging.set_verbosity(tf.logging.INFO)
 tfgan = tf.contrib.gan
 flags = tf.flags
 
-flags.DEFINE_integer('batch_size', 1,
+flags.DEFINE_integer('batch_size', 32,
                      'The number of images in each train batch.')
 
 flags.DEFINE_integer('max_number_of_steps', 2000,
                      'The maximum number of gradient steps.')
 
 flags.DEFINE_integer(
-    'noise_dims', 64, 'Dimensions of the generator noise vector')
+    'noise_dims', 200, 'Dimensions of the generator noise vector')
 
-flags.DEFINE_string('dataset_dir', '~/', 'Location of data.')
+flags.DEFINE_string('dataset_dir', None, 'Location of data.')
 
-flags.DEFINE_string('eval_dir', '/tmp/mnist-estimator/',
+flags.DEFINE_string('eval_dir', './tmp/mnist-estimator/',
                     'Directory where the results are saved to.')
 
-flags.DEFINE_string('train_log_dir', '/tmp/log/',
+flags.DEFINE_string('train_log_dir', './tmp2/log/',
                     'Directory where to write event logs.')
+
 FLAGS = flags.FLAGS
 
-
-def _get_train_input_fn(batch_size, noise_dims, dataset_dir,
-                        num_threads=4):
+img = np.load("bed.npy").astype(np.float32).reshape(-1, 64, 64, 64, 1)
+def _get_train_input_fn(batch_size,  noise_dims, img):
   def train_input_fn():
-    with tf.device('/cpu:0'):
+    #with tf.device('/cpu:0'):
       #images, _, _ = data_provider.provide_data(
           #'train_estimator', batch_size, dataset_dir, num_threads=num_threads)
-       images = np.load("bed.npy").astype(np.float32)
-    new_images = images[np.newaxis, :, :, :, np.newaxis]
+   
+    voxels = tf.estimator.inputs.numpy_input_fn(x={"x":img},
+                                                y=None,
+                                                batch_size=batch_size,
+                                                num_epochs=None,
+                                                shuffle=True)() 
     noise = tf.random_normal([batch_size, noise_dims])
-    #print(new_images.shape)
-    return noise, new_images
+    voxel = voxels["x"]
+    return noise, voxel
   return train_input_fn
 
 
 def _get_predict_input_fn(batch_size, noise_dims):
   def predict_input_fn():
     noise = tf.random_normal([batch_size, noise_dims])
+    # noise = tf.estimator.inputs.numpy_input_fn(x={"x":np.random.random((100, noise_dims)).astype(np.float32)},
+    #                                            y=None,
+     #                                           batch_size=batch_size,
+      #                                          num_epochs=1,
+       #                                         shuffle=True)() 
     return noise
   return predict_input_fn
 
 
 def _unconditional_generator(noise, mode):
-  """MNIST generator with extra argument for tf.Estimator's `mode`."""
+  """3D generator with extra argument for tf.Estimator's `mode`."""
   is_training = (mode == tf.estimator.ModeKeys.TRAIN)
   return networks.unconditional_generator(noise, is_training=is_training)
 
@@ -85,23 +93,36 @@ def main(_):
       discriminator_fn=networks.unconditional_discriminator,
       generator_loss_fn=tfgan.losses.wasserstein_generator_loss,
       discriminator_loss_fn=tfgan.losses.wasserstein_discriminator_loss,
-      generator_optimizer=tf.train.AdamOptimizer(0.001, 0.5),
-      discriminator_optimizer=tf.train.AdamOptimizer(0.0001, 0.5),
-      model_dir=FLAGS.train_log_dir)
-     # add_summaries=tfgan.estimator.SummaryType.IMAGES)
+      generator_optimizer=tf.train.AdamOptimizer(0.0025, 0.00001),
+      discriminator_optimizer=tf.train.AdamOptimizer(0.0025, 0.00001),
+      model_dir=FLAGS.train_log_dir,
+      add_summaries=tfgan.estimator.SummaryType.VARIABLES)
 
   # Train estimator.
   train_input_fn = _get_train_input_fn(
-      FLAGS.batch_size, FLAGS.noise_dims, FLAGS.dataset_dir)
+      FLAGS.batch_size, FLAGS.noise_dims, img)
+  #print(train_input_fn)
   gan_estimator.train(train_input_fn, max_steps=FLAGS.max_number_of_steps)
+  
+  def _get_next(iterable):
+    try:
+        return iterable.next()  # Python 2.x.x
+    except AttributeError:
+        return iterable.__next__()  # Python 3.x.x
 
   # Run inference.
-  predict_input_fn = _get_predict_input_fn(1, FLAGS.noise_dims)
-        
+  predict_input_fn = _get_predict_input_fn(36, FLAGS.noise_dims)
   prediction_iterable = gan_estimator.predict(predict_input_fn)
-  #predictions = [prediction_iterable.next() for _ in xrange(1)]
-  #for i in prediction_iterable:
-    # print(i.shape)
+  predictions = [_get_next(prediction_iterable) for _ in xrange(36)]
+  #for p in prediction_iterable:
+    # np.save("result", p)
+  try:
+      _get_next(prediction_iterable)
+  except StopIteration:
+      pass
+   
+  #predictions = np.array[x for x in gan_estimator.predict(predict_input_fn)]
+  np.save("result", predictions)
   # Nicely tile.
   #image_rows = [np.concatenate(predictions[i:i+6], axis=0) for i in
   #              range(0, 36, 6)]
