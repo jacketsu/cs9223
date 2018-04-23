@@ -1,7 +1,3 @@
-# User: shengyifan
-# Date: 3/28/18
-# Time: 18:42
-
 import os
 import glob
 import subprocess as sub
@@ -31,9 +27,8 @@ for model_name in name_list:
             file_name = os.path.splitext(os.path.basename(input_file))[0]
             output_file = os.path.join(output_root, model_name, file_name + ".binvox")
             os.rename(temp_file, output_file)
-            with open(output_file, "rb") as fp:
-                model = bv.read(fp)
-                models.append(model.data.flatten())
+            model = bv.load(output_file)
+            models.append(model.data.flatten())
     np.save(os.path.join(numpy_root, model_name), np.row_stack(models))
 
 
