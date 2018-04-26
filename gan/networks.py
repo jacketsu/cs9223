@@ -28,41 +28,38 @@ tfgan = tf.contrib.gan
 def _generator_helper(
     noise, is_conditional, one_hot_labels, weight_decay, is_training):
   """Core 3D  generator.
-
   This function is reused between the different GAN models (unconditional,
   conditional, etc).
-
   """
   with tf.contrib.framework.arg_scope(
-      [layers.fully_connected, layers.conv3d_transpose],
+      [layers.conv3d_transpose],
       activation_fn=tf.nn.relu, normalizer_fn=layers.batch_norm,
       weights_regularizer=layers.l2_regularizer(weight_decay)):
     with tf.contrib.framework.arg_scope(
         [layers.batch_norm], is_training=is_training):
       #print(noise.shape)
-      net = layers.fully_connected(noise, 2048)
+      #net = layers.fully_connected(noise, 2048)
       #if is_conditional:
        # net = tfgan.features.condition_tensor_from_onehot(net, one_hot_labels)
       #net = tf.reshape(noise, [-1, 1, 1, 1, 200])
-      net = layers.fully_connected(net, 4 * 4 * 4 * 200)
-      net = tf.reshape(net, [-1, 4, 4, 4, 200])
+      #net = layers.fully_connected(net, 4 * 4 * 4 * 200)
+      net = tf.reshape(noise, [-1, 1, 1, 1, 200])
       #print(net.shape)
-      net = layers.conv3d_transpose(net, 512, [4, 4, 4], stride=2)
+      net = layers.conv3d_transpose(net, 512, kernel_size=4, stride=1, padding="VALID")
       #print(net.shape)
-      net = layers.conv3d_transpose(net, 256, [4, 4, 4], stride=2)
-      net = layers.conv3d_transpose(net, 128,[4, 4, 4], stride=2)
-      net = layers.conv3d_transpose(net, 64, [4, 4, 4], stride=2)
+      net = layers.conv3d_transpose(net, 256, kernel_size=4, stride=2)
+      net = layers.conv3d_transpose(net, 128, kernel_size=4, stride=2)
+      net = layers.conv3d_transpose(net, 64, kernel_size=4, stride=2)
       #print(net.shape)
       # Make sure that generator output is in the same range as `inputs`
       # ie [-1, 1].
-      net = layers.conv3d(net, 1, [4, 4, 4], stride=1, normalizer_fn=None, activation_fn=tf.tanh)
+      net = layers.conv3d_transpose(net, 1, kernel_size=4, stride=2, normalizer_fn=None, activation_fn=tf.sigmoid)
      # print(net.shape)
       return net
 
 
 def unconditional_generator(noise, weight_decay=2.5e-5, is_training=True):
   """Generator to produce unconditional 3D objects.
-
   """
   return _generator_helper(noise, False, None, weight_decay, is_training)
 
@@ -87,22 +84,19 @@ _leaky_relu = lambda x: tf.nn.leaky_relu(x, alpha=0.2)
 
 def _discriminator_helper(img, is_conditional, one_hot_labels, weight_decay):
   """Core 3D  discriminator.
-
   This function is reused between the different GAN modes (unconditional,
   conditional, etc).
-
   Args:
     img: Real or generated 3D digits. Should be in the range [-1, 1].
     is_conditional: Whether to condition on labels.
     one_hot_labels: Labels to optionally condition the network on.
     weight_decay: The L2 weight decay.
-
   Returns:
     Final fully connected discriminator layer. [batch_size, 1024].
   """
   with tf.contrib.framework.arg_scope(
-      [layers.conv3d, layers.fully_connected],
-      activation_fn=_leaky_relu, normalizer_fn=None,
+      [layers.conv3d],
+      activation_fn=_leaky_relu, normalizer_fn=layers.batch_norm,
       weights_regularizer=layers.l2_regularizer(weight_decay),
       biases_regularizer=layers.l2_regularizer(weight_decay)): 
      #print(img.shape)
@@ -112,12 +106,12 @@ def _discriminator_helper(img, is_conditional, one_hot_labels, weight_decay):
      net = layers.conv3d(net, 256, kernel_size=4, stride=2)
      net = layers.conv3d(net, 512, kernel_size=4, stride=2)
      #print(net.shape)
-     #net = layers.conv3d(net, 200, kernel_size=4, stride=1, activation_fn=tf.tanh)
-     net = layers.flatten(net)
+     net = layers.conv3d(net, 1, kernel_size=4, stride=1, padding="VALID", activation_fn=tf.sigmoid)
+     #net = layers.flatten(net)
      #print(net.shape)
 # if is_conditional:
      # net = tfgan.features.condition_tensor_from_onehot(net, one_hot_labels)
-     net = layers.fully_connected(net, 2048, normalizer_fn=layers.layer_norm)
+     #net = layers.fully_connected(net, 2048, normalizer_fn=layers.layer_norm)
      #print(net.shape)
      return net
 
