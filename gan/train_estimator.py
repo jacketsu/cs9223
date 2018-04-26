@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Trains a GANEstimator on MNIST data."""
+"""Trains a GANEstimator on 3D Object data."""
 
 from __future__ import absolute_import
 from __future__ import division
