@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Trains a GANEstimator on 3D Object data."""
+"""Trains a GANEstimator on MNIST data."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -31,10 +31,10 @@ import networks
 tfgan = tf.contrib.gan
 flags = tf.flags
 
-flags.DEFINE_integer('batch_size', 50,
+flags.DEFINE_integer('batch_size', 100,
                      'The number of images in each train batch.')
 
-flags.DEFINE_integer('max_number_of_steps', 2000,
+flags.DEFINE_integer('max_number_of_steps', 2500,
                      'The maximum number of gradient steps.')
 
 flags.DEFINE_integer(
@@ -92,8 +92,8 @@ def main(_):
   gan_estimator = tfgan.estimator.GANEstimator(
       generator_fn=_unconditional_generator,
       discriminator_fn=networks.unconditional_discriminator,
-      generator_loss_fn=tfgan.losses.modified_generator_loss,
-      discriminator_loss_fn=tfgan.losses.modified_discriminator_loss,
+      generator_loss_fn=tfgan.losses.wasserstein_generator_loss,
+      discriminator_loss_fn=tfgan.losses.wasserstein_discriminator_loss,
       generator_optimizer=tf.train.AdamOptimizer(0.0025, 0.5),
       discriminator_optimizer=tf.train.AdamOptimizer(0.00001, 0.5),
       config=config,
