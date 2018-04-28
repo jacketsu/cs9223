@@ -34,7 +34,7 @@ flags = tf.flags
 flags.DEFINE_integer('batch_size', 100,
                      'The number of images in each train batch.')
 
-flags.DEFINE_integer('max_number_of_steps', 2500,
+flags.DEFINE_integer('max_number_of_steps', 10000,
                      'The maximum number of gradient steps.')
 
 flags.DEFINE_integer(
@@ -45,12 +45,12 @@ flags.DEFINE_string('dataset_dir', None, 'Location of data.')
 flags.DEFINE_string('eval_dir', './tmp/mnist-estimator/',
                     'Directory where the results are saved to.')
 
-flags.DEFINE_string('train_log_dir', './tmp3/log/',
+flags.DEFINE_string('train_log_dir', './tmp_sig/log/',
                     'Directory where to write event logs.')
 
 FLAGS = flags.FLAGS
 
-img = np.load("bed.npy").astype(np.float32).reshape(-1, 64, 64, 64, 1)
+img = np.load("chair.npy").astype(np.float32).reshape(-1, 64, 64, 64, 1)
 def _get_train_input_fn(batch_size,  noise_dims, img):
   def train_input_fn():
     #with tf.device('/cpu:0'):
@@ -92,8 +92,8 @@ def main(_):
   gan_estimator = tfgan.estimator.GANEstimator(
       generator_fn=_unconditional_generator,
       discriminator_fn=networks.unconditional_discriminator,
-      generator_loss_fn=tfgan.losses.wasserstein_generator_loss,
-      discriminator_loss_fn=tfgan.losses.wasserstein_discriminator_loss,
+      generator_loss_fn=tfgan.losses.modified_generator_loss,
+      discriminator_loss_fn=tfgan.losses.modified_discriminator_loss,
       generator_optimizer=tf.train.AdamOptimizer(0.0025, 0.5),
       discriminator_optimizer=tf.train.AdamOptimizer(0.00001, 0.5),
       config=config,
@@ -116,7 +116,7 @@ def main(_):
   prediction_iterable = gan_estimator.predict(predict_input_fn, hooks=[tf.train.StopAtStepHook(last_step=1)])
   predictions = [next(prediction_iterable).flatten() for _ in range(10)]
   #for p in prediction_iterable:
-  np.save("result", np.row_stack(predictions))
+  np.save("sig_result", np.row_stack(predictions))
   #try:
    #   _get_next(prediction_iterable)
   #except StopIteration:
